@@ -20,6 +20,7 @@ class Monitor:
         self._refresh_lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
+        self._windows_sampler = None
         self._data = {'ready': False, 'system': {}, 'connections': [], 'processes': [], 'warnings': []}
         psutil.cpu_percent(None)
 
@@ -54,9 +55,22 @@ class Monitor:
                     self._data = {**self._data, 'warnings': ['系统数据采集失败，正在重试']}
             self._stop.wait(self.interval)
 
-    def _collect(self):
+    def _collect_processes(self, cpus):
+        if os.name == 'nt':
+            try:
+                if self._windows_sampler is None:
+                    from .win_snapshot import WindowsProcessSampler
+                    self._windows_sampler = WindowsProcessSampler()
+                processes = self._windows_sampler.sample(cpus)
+            except (OSError, ValueError):
+                # Retain the portable sampler if Windows rejects the native layout.
+                pass
+            else:
+                for process in processes:
+                    process['ports'] = []
+                    process['protected_reason'] = protection_reason(process['pid'], process['name'])
+                return processes
         processes = []
-        cpus = psutil.cpu_count() or 1
         for process in psutil.process_iter(['pid', 'name', 'create_time', 'memory_info'], ad_value=None):
             try:
                 info = process.info
@@ -70,6 +84,11 @@ class Monitor:
                 })
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
+        return processes
+
+    def _collect(self):
+        cpus = psutil.cpu_count() or 1
+        processes = self._collect_processes(cpus)
         owners = {p['pid']: p for p in processes}
         warnings = []
         connections = []

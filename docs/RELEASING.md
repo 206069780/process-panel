@@ -53,7 +53,7 @@ git push -u origin main
 ## 创建 Release
 
 1. 在仓库的 Releases 页面选择“Draft a new release”。
-2. 基于已验证提交创建版本标签，例如 `v1.1.1`。
+2. 基于已验证提交创建版本标签，例如 `v1.1.2`。
 3. 将对应的更新日志写入发布说明，标明 Windows x64 和独立桌面窗口。
 4. 上传 `dist/Portside-windows-x64.zip`、`dist/SHA256SUMS.txt` 及与本次打包依赖匹配的第三方许可材料，检查附件完整后发布。使用说明注明“解压后运行，并保留整个文件夹”。
 
@@ -62,7 +62,7 @@ git push -u origin main
 如果已安装并登录 GitHub CLI，也可执行以下命令创建发布草稿，再在网页检查附件并发布：
 
 ```powershell
-gh release create v1.1.1 --target main --draft --title "Portside 1.1.1" --notes-file CHANGELOG.md .\dist\Portside-windows-x64.zip .\dist\SHA256SUMS.txt
+gh release create v1.1.2 --target main --draft --title "Portside 1.1.2" --notes-file CHANGELOG.md .\dist\Portside-windows-x64.zip .\dist\SHA256SUMS.txt
 ```
 
 完成后从 Releases 重新下载 ZIP，核对 SHA-256，解压到新目录再检查独立运行。若需要额外发布单文件版，使用 `build.ps1 -SingleFile` 构建 `dist/singlefile/Portside.exe`，单独记录其哈希并说明启动时需要解包。

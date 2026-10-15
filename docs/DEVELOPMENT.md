@@ -33,9 +33,11 @@ py -3.12 -m venv .venv
 main.py                 启动、参数、实例锁和清理
 panel/
   desktop.py            权限检测、运行记录、Windows 互斥锁
-  window.py             Qt 窗口、内置页面、本地 IPC 和生命周期
+  window.py             轻量启动控制、本地 IPC 和生命周期
+  web_window.py         延迟加载的 WebEngine 窗口与内置页面
   splash.py             原生启动动画、加载状态和取消按钮
   monitor.py            进程及网络采集、后台刷新、快照缓存
+  win_snapshot.py       Windows x64 批量进程采样与 CPU 差分
   processes.py          进程详情、身份校验和受保护的结束操作
   server.py             回环 HTTP 服务、会话和来源校验
   tray.py               构建图标及 Windows 提权辅助函数
@@ -61,7 +63,7 @@ docs/                   使用、设计、开发和发布文档
 node --test tests/test_model.mjs tests/test_ui_lifecycle.mjs
 ```
 
-Python 测试包括真实 Qt 窗口、剪贴板、本地网络监听与可丢弃子进程，需要可交互的 Windows 桌面。Node 测试覆盖查询模型及结束请求期间的界面状态。1.1.0 的验证基线为 Python 30 项、Node 12 项通过。
+Python 测试包括真实 Qt 窗口、剪贴板、本地网络监听与可丢弃子进程，需要可交互的 Windows 桌面。Node 测试覆盖查询模型及结束请求期间的界面状态。1.1.2 验证包括 Python 40 项与 Node 14 项，详见[性能及验收记录](instant-startup-2026-10-15.md)。
 
 ## 打包与独立运行验收
 

@@ -23,6 +23,7 @@ class ProcessTests(unittest.TestCase):
         self.assertTrue(any(p['protocol'] == 'UDP' and p['port'] == self.ports['udp']
                             for p in owned))
         process = next(p for p in snapshot['processes'] if p['pid'] == self.child.pid)
+        self.assertAlmostEqual(process['create_time'], self.created, delta=.001)
         self.assertIn(self.ports['tcp'], process['ports'])
         self.assertGreater(snapshot['system']['memory_total'], 0)
         self.assertGreater(snapshot['system']['process_count'], 0)

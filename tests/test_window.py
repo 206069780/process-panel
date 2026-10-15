@@ -21,6 +21,7 @@ from panel.server import PanelServer
 class WindowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
         cls.app = QApplication.instance() or QApplication([])
         cls.app.setQuitOnLastWindowClosed(False)
 
@@ -38,6 +39,14 @@ class WindowTests(unittest.TestCase):
         page.runJavaScript(source, values.append)
         self.wait_until(lambda: bool(values))
         return values[0]
+
+    def test_startup_shell_import_does_not_load_webengine(self):
+        probe = subprocess.run([sys.executable, '-c',
+            'import sys,json; import panel.window; '
+            'print(json.dumps([name for name in sys.modules if name.startswith("PySide6.QtWebEngine")]))'],
+            capture_output=True, text=True, timeout=15)
+        self.assertEqual(probe.returncode, 0, probe.stderr)
+        self.assertEqual(json.loads(probe.stdout), [], 'WebEngine loads before startup feedback')
 
     def test_startup_animation_changes_frames_and_finishes_immediately(self):
         import importlib.util
@@ -64,7 +73,7 @@ class WindowTests(unittest.TestCase):
         self.assertTrue(hasattr(window, 'DesktopStartup'), 'Desktop startup handoff is missing')
         from panel.window import DesktopStartup
         startup = DesktopStartup('http://127.0.0.1:1')
-        with patch('panel.window.DashboardWindow') as dashboard:
+        with patch('panel.window.create_dashboard') as dashboard:
             startup.start()
             QTest.mouseClick(startup.splash.cancel_button, Qt.MouseButton.LeftButton)
             self.app.processEvents()
@@ -77,7 +86,7 @@ class WindowTests(unittest.TestCase):
         self.assertTrue(hasattr(window, 'DesktopStartup'), 'Desktop startup handoff is missing')
         from panel.window import DesktopStartup
         startup = DesktopStartup('http://127.0.0.1:1')
-        with patch('panel.window.DashboardWindow', side_effect=RuntimeError('initialization failed')):
+        with patch('panel.window.create_dashboard', side_effect=RuntimeError('initialization failed')):
             startup.start()
             self.wait_until(lambda: startup.error is not None)
             self.assertIsInstance(startup.error, RuntimeError)
@@ -92,7 +101,7 @@ class WindowTests(unittest.TestCase):
             origin = f'http://127.0.0.1:{unused.getsockname()[1]}'
             startup = DesktopStartup(origin)
             try:
-                with patch('panel.window.QMessageBox.warning') as warning:
+                with patch('panel.web_window.QMessageBox.warning') as warning:
                     startup.start()
                     self.wait_until(lambda: warning.called)
                     self.assertTrue(startup.window.isVisible())
@@ -102,6 +111,9 @@ class WindowTests(unittest.TestCase):
                 startup.stop()
                 if startup.window:
                     startup.window.dispose()
+                    from shiboken6 import isValid
+                    self.assertFalse(isValid(startup.window), 'Qt window must be destroyed on the GUI thread')
+                    self.assertFalse(isValid(startup.window.profile))
 
     def test_real_dashboard_renders_restores_and_accepts_activation(self):
         from panel.window import DesktopStartup, DesktopChannel

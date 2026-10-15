@@ -27,7 +27,9 @@ Windows 本机进程与端口管理工具。通过中文面板查看系统资源
 
 普通权限可以查看大部分信息。提示权限不足时，关闭程序，右键 EXE 选择“以管理员身份运行”。结束进程可能丢失未保存的数据。
 
-1.1.1 默认使用便携文件夹，解压一次后启动时直接加载组件，避免原单文件版每次重复解包。可将 EXE 的快捷方式放到桌面，移动程序时携带整个 `Portside` 文件夹。
+默认使用便携文件夹，解压一次后启动时直接加载组件，避免原单文件版每次重复解包。可将 EXE 的快捷方式放到桌面，移动程序时携带整个 `Portside` 文件夹。
+
+1.1.2 保留原有界面，进一步采用 Windows 批量进程采集，并在启动画面绘制后加载内置渲染组件。实际速度见[启动性能记录](docs/instant-startup-2026-10-15.md)。
 
 ## 搜索示例
 
@@ -80,6 +82,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 | [贡献指南](CONTRIBUTING.md) | 问题反馈与提交要求 |
 | [第三方组件](THIRD_PARTY_NOTICES.md) | 主要依赖及其许可来源 |
 | [验证记录](docs/verification-2026-10-15.md) | 1.1.0 本机测试与打包验证证据 |
-| [启动性能验证](docs/startup-performance-2026-10-15.md) | 1.1.1 启动测量和便携包验收 |
+| [启动性能验证](docs/instant-startup-2026-10-15.md) | 1.1.2 实际启动测量和独立 EXE 验收 |
 
 项目使用 Python、psutil、PySide6 / Qt WebEngine 和原生 JavaScript。应用只管理当前电脑，内部服务仅监听 `127.0.0.1`，详情见[架构说明](docs/ARCHITECTURE.md)。
