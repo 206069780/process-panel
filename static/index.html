@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="panel-token" content="__PANEL_TOKEN__">
+  <meta name="color-scheme" content="dark">
+  <title>Portside · 本机进程控制台</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+<svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/><rect x="10" y="10" width="4" height="4" rx=".5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-port" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="6" rx="1.5"/><rect x="2" y="16" width="8" height="6" rx="1.5"/><rect x="14" y="16" width="8" height="6" rx="1.5"/><path d="M12 8v4m-6 4v-4h12v4"/></symbol>
+  <symbol id="i-process" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7a9 9 0 0 0-15-2L2 8m0-6v6h6m-4 9a9 9 0 0 0 15 2l3-3m0 6v-6h-6"/></symbol>
+  <symbol id="i-memory" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10v4m4-4v4m4-4v4m4-4v4M6 18v3m4-3v3m4-3v3m4-3v3"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4m0 3h.01"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6z"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></symbol>
+</defs></svg>
+
+<aside class="sidebar">
+  <a class="brand" href="/" aria-label="Portside 首页"><span class="brand-icon"><svg class="icon"><use href="#i-chip"/></svg></span><span>Portside<span class="brand-sub">进程与端口工作台</span></span></a>
+  <div class="workspace"><span class="workspace-icon"><svg class="icon"><use href="#i-monitor"/></svg></span><span>本地工作空间<small id="sidebar-host">正在连接本机</small></span><span class="status-dot"></span></div>
+  <div class="nav-label">工作台 <span>WORKSPACE</span></div>
+  <nav aria-label="主导航">
+    <button class="nav-item active" data-view="ports"><svg class="icon"><use href="#i-port"/></svg>端口占用<span id="nav-ports" class="nav-count">—</span></button>
+    <button class="nav-item" data-view="processes"><svg class="icon"><use href="#i-process"/></svg>全部进程<span id="nav-processes" class="nav-count">—</span></button>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="local-note"><svg class="icon"><use href="#i-shield"/></svg><strong>在本机，掌控全局</strong><p>实时查看资源与端口，<br>让每一个进程清晰可见。</p><span class="tag">LOCAL ONLY</span></div>
+    <button class="nav-item" id="help-button"><svg class="icon"><use href="#i-help"/></svg>使用说明<svg class="icon tiny end"><use href="#i-arrow"/></svg></button>
+    <div class="sidebar-footer"><span class="status-dot"></span>桌面应用<span class="mono">v1.1.0</span></div>
+  </div>
+</aside>
+
+<div class="app-shell">
+  <header class="topbar"><div class="breadcrumb"><svg class="icon"><use href="#i-grid"/></svg><span>工作台</span><span class="divider">/</span><strong>系统监控</strong></div><div class="topbar-right"><span id="current-date"></span><span class="topbar-divider"></span><span class="local-badge"><span class="status-dot"></span>本机环境</span><button class="icon-button" id="fullscreen-button" title="切换全屏" aria-label="切换全屏"><svg class="icon"><use href="#i-expand"/></svg></button></div></header>
+  <main>
+    <section class="page-heading"><div><div class="eyebrow">SYSTEM MONITOR</div><h1>本机进程控制台<span class="heading-dot">.</span></h1><p>洞察端口占用，轻松管理每一个进程。</p></div><div class="heading-actions"><span class="connection-state" id="connection-state"><span class="status-dot"></span><span id="connection-text">正在连接</span></span><button class="button primary" id="refresh-button"><svg class="icon"><use href="#i-refresh"/></svg>刷新数据</button></div></section>
+    <div class="notice hidden" id="notice" role="status"></div>
+
+    <section class="metrics" aria-label="系统资源概况">
+      <article class="metric-card"><div class="metric-label"><span><svg class="icon"><use href="#i-chip"/></svg>CPU 使用率</span><span class="metric-mark">CPU</span></div><div class="metric-value"><span id="cpu-value">—</span><small>%</small></div><div class="metric-bottom"><span id="cpu-meta">正在获取处理器信息</span><svg id="cpu-chart" class="sparkline mint" viewBox="0 0 120 30" aria-label="本次会话 CPU 使用趋势"></svg></div></article>
+      <article class="metric-card"><div class="metric-label"><span><svg class="icon"><use href="#i-memory"/></svg>内存使用率</span><span class="metric-mark">RAM</span></div><div class="metric-value"><span id="memory-value">—</span><small>%</small></div><div class="metric-bottom"><span id="memory-meta">正在获取内存信息</span><svg id="memory-chart" class="sparkline blue" viewBox="0 0 120 30" aria-label="本次会话内存使用趋势"></svg></div></article>
+      <article class="metric-card"><div class="metric-label"><span><svg class="icon"><use href="#i-process"/></svg>运行进程</span><span class="metric-mark">PROCESS</span></div><div class="metric-value"><span id="process-value">—</span><small>个</small></div><div class="metric-bottom"><span><span class="mini-dot blue-dot"></span>当前系统进程总数</span><span class="metric-symbol">↗</span></div></article>
+      <article class="metric-card"><div class="metric-label"><span><svg class="icon"><use href="#i-port"/></svg>监听端口</span><span class="metric-mark">PORT</span></div><div class="metric-value"><span id="port-value">—</span><small>个</small></div><div class="metric-bottom"><span><span class="mini-dot mint-dot"></span>TCP 监听 / UDP 绑定</span><span class="metric-symbol">⌁</span></div></article>
+    </section>
+
+    <div class="content-grid">
+      <section class="panel main-panel" aria-label="进程与端口查询">
+        <div class="panel-heading"><div class="tabs" role="tablist" aria-label="数据视图"><button role="tab" aria-selected="true" class="tab active" data-view="ports"><svg class="icon"><use href="#i-port"/></svg>端口占用<span class="tab-count" id="ports-tab-count">—</span></button><button role="tab" aria-selected="false" class="tab" data-view="processes"><svg class="icon"><use href="#i-process"/></svg>全部进程<span class="tab-count" id="processes-tab-count">—</span></button></div><label class="auto-refresh"><input type="checkbox" id="auto-refresh" checked><span class="switch-track"></span><span>自动刷新</span><span class="interval-label">2s</span></label></div>
+        <div class="toolbar"><div class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="模糊搜索端口、PID 或进程名称…" aria-label="搜索端口、PID 或进程名称" autocomplete="off" spellcheck="false"><kbd>/</kbd></div><select id="protocol-filter" aria-label="协议筛选"><option value="all">全部协议</option><option value="TCP">TCP</option><option value="UDP">UDP</option></select><select id="state-filter" aria-label="状态筛选"><option value="listening">监听 / 绑定</option><option value="all">全部状态</option><option value="established">已建立连接</option></select></div>
+        <div class="quick-filters"><span>常用端口</span><button data-port="3000">:3000</button><button data-port="5173">:5173</button><button data-port="8080">:8080</button><button data-port="3306">:3306</button><button data-port="6379">:6379</button><button id="clear-filters" class="clear-filters hidden">清除筛选 <span>×</span></button></div>
+        <div class="table-scroll"><table><thead id="table-head"></thead><tbody id="table-body"><tr><td colspan="7"><div class="empty-state"><span class="loading-ring"></span><strong>正在读取本机进程</strong><p>首次采集可能需要几秒钟</p></div></td></tr></tbody></table></div>
+        <div class="table-footer"><span id="result-summary" aria-live="polite">正在获取数据…</span><div class="pagination"><label>每页 <select id="page-size" aria-label="每页条数"><option value="12">12</option><option value="25">25</option><option value="50">50</option></select> 条</label><button class="page-button previous" id="previous-page" aria-label="上一页"><svg class="icon"><use href="#i-arrow"/></svg></button><span id="page-label" class="mono">1 / 1</span><button class="page-button" id="next-page" aria-label="下一页"><svg class="icon"><use href="#i-arrow"/></svg></button></div></div>
+      </section>
+
+      <aside class="insights" aria-label="本机状态">
+        <section class="panel ranking-panel"><div class="side-heading"><h2>资源占用 TOP 5</h2><span class="subtle-tag">内存</span></div><div id="top-processes" class="top-processes"><p class="muted loading-copy">等待系统数据…</p></div><div class="panel-tip"><svg class="icon"><use href="#i-arrow"/></svg><button id="show-memory-processes">查看全部进程</button></div></section>
+        <section class="panel network-panel"><div class="side-heading"><h2>网络端点</h2><svg class="icon muted"><use href="#i-port"/></svg></div><div class="network-total"><span id="network-total">—</span><small>个本地端点</small></div><div class="network-bar"><span id="tcp-bar"></span><span id="udp-bar"></span></div><div class="network-legend"><span><i class="mini-dot mint-dot"></i>TCP <strong id="tcp-count">—</strong></span><span><i class="mini-dot blue-dot"></i>UDP <strong id="udp-count">—</strong></span></div><p class="network-caption">包含监听、绑定与已建立的连接</p></section>
+        <section class="panel machine-panel"><div class="side-heading"><h2>本机信息</h2><svg class="icon muted"><use href="#i-monitor"/></svg></div><dl><div><dt>主机名称</dt><dd id="machine-name">—</dd></div><div><dt>操作系统</dt><dd id="machine-os">—</dd></div><div><dt>运行时长</dt><dd id="machine-uptime">—</dd></div><div><dt>当前权限</dt><dd id="machine-permission">—</dd></div></dl></section>
+      </aside>
+    </div>
+    <footer class="main-footer"><span><span class="status-dot" id="footer-dot"></span><span id="updated-at">等待首次采集</span></span><span>数据来自本机系统<span class="footer-separator">·</span><span id="sampling-text">每 2 秒采集</span></span></footer>
+  </main>
+</div>
+
+<dialog id="detail-dialog" class="detail-dialog"><div class="dialog-header"><div><div class="eyebrow">PROCESS DETAILS</div><h2 id="detail-title">进程详情</h2></div><button class="icon-button" data-close="detail-dialog" aria-label="关闭进程详情"><svg class="icon"><use href="#i-x"/></svg></button></div><div id="detail-content"></div><div class="dialog-footer"><button class="button" id="copy-detail"><svg class="icon"><use href="#i-copy"/></svg>复制信息</button><button class="button danger" id="detail-terminate"><svg class="icon"><use href="#i-stop"/></svg>结束进程</button></div></dialog>
+
+<dialog id="terminate-dialog" class="terminate-dialog"><div class="dialog-header"><span class="danger-icon"><svg class="icon"><use href="#i-stop"/></svg></span><button class="icon-button" data-close="terminate-dialog" aria-label="取消结束进程"><svg class="icon"><use href="#i-x"/></svg></button></div><h2>结束这个进程？</h2><p class="dialog-description">进程将被终止，相关端口随之释放。未保存的工作可能丢失。</p><div id="terminate-target" class="terminate-target"></div><p class="inline-error hidden" id="terminate-error" role="alert"></p><div class="dialog-footer"><button class="button" id="cancel-terminate" data-close="terminate-dialog">取消</button><button class="button danger" id="confirm-terminate">确认结束进程</button></div></dialog>
+
+<dialog id="help-dialog"><div class="dialog-header"><div><div class="eyebrow">QUICK GUIDE</div><h2>让进程管理更简单</h2></div><button class="icon-button" data-close="help-dialog" aria-label="关闭使用说明"><svg class="icon"><use href="#i-x"/></svg></button></div><div class="help-content"><h3>快速定位</h3><p>输入端口号、PID 或进程名称的任意片段进行模糊查询，例如 80 可匹配 8080、48080。输入 <code>:8080</code> 精确查端口，<code>pid:1234</code> 精确查进程 ID。</p><h3>查看与结束进程</h3><p>点击进程名称或“详情”可查看路径、启动时间和占用端口；点击“结束”并确认后终止进程。Windows 关键进程及面板的启动进程受到保护。</p><h3>权限与数据</h3><p>普通权限即可查看大部分进程。遇到权限不足，可右键 Portside.exe 选择“以管理员身份运行”。</p><h3>快捷操作</h3><p>按 <kbd>/</kbd> 聚焦搜索，按 <kbd>Esc</kbd> 关闭弹窗。点击表头排序，关闭“自动刷新”可暂停页面更新。CPU 曲线展示本次会话采样，首个样本可能为零。</p><p class="muted">本工具仅管理当前电脑。关闭应用窗口即可退出程序并停止采集。再次双击 EXE 会恢复已打开的窗口。</p></div></dialog>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+</body>
+</html>
