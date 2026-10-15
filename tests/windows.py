@@ -19,7 +19,7 @@ user32.EnumChildWindows.argtypes = [wintypes.HWND, callback_type, wintypes.LPARA
 user32.SetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
 
 
-def window_for_pid(pid):
+def window_for_pid(pid, title_prefix='Portside · 进程与端口工作台'):
     found = []
 
     @callback_type
@@ -29,7 +29,7 @@ def window_for_pid(pid):
         if owner.value == pid and user32.IsWindowVisible(hwnd):
             title = ctypes.create_unicode_buffer(256)
             user32.GetWindowTextW(hwnd, title, len(title))
-            if title.value.startswith('Portside · 进程与端口工作台'):
+            if title.value.startswith(title_prefix):
                 found.append(hwnd)
         return True
 

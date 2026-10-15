@@ -1,8 +1,9 @@
 // Inspect the actual packaged Qt page through its test-only loopback debugger.
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
+import { writeFile } from 'node:fs/promises';
 
-const [endpoint, origin] = process.argv.slice(2);
+const [endpoint, origin, screenshotPath] = process.argv.slice(2);
 let target;
 for (let attempt = 0; attempt < 150; attempt++) {
   try {
@@ -39,6 +40,13 @@ function evaluate(expression) {
       params: {expression, returnByValue: true, awaitPromise: true}}));
   });
 }
+function command(method, params) {
+  const id = ++sequence;
+  return new Promise((resolve, reject) => {
+    pending.set(id, {resolve, reject});
+    socket.send(JSON.stringify({id, method, params}));
+  });
+}
 try {
   let ready = false;
   for (let attempt = 0; attempt < 150; attempt++) {
@@ -59,6 +67,10 @@ try {
   })()`);
   assert.deepEqual(fuzzy, {fuzzy: 2, exact: 1});
   assert.equal(await evaluate(`document.title`), 'Portside · 本机进程控制台');
+  if (screenshotPath) {
+    const capture = await command('Page.captureScreenshot', {format: 'png'});
+    await writeFile(screenshotPath, Buffer.from(capture.data, 'base64'));
+  }
   console.log(JSON.stringify({live_dashboard_rendered: true, packaged_fuzzy_search: true}));
 } finally {
   socket.close();

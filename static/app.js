@@ -12,6 +12,7 @@ const dateTime = new Intl.DateTimeFormat('zh-CN', {hour: '2-digit', minute: '2-d
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 let toastTimer;
+let initialPollTimer;
 
 function toast(message, error = false) {
   clearTimeout(toastTimer);
@@ -98,6 +99,7 @@ function setNotice(message) {
 
 async function loadData(force = false) {
   if (state.busy || state.terminating) return;
+  clearTimeout(initialPollTimer);
   state.busy = true;
   $('refresh-button').disabled = true;
   if (force) $('refresh-button').classList.add('spinning');
@@ -109,6 +111,9 @@ async function loadData(force = false) {
     if (snapshot.updated_at && Date.now() / 1000 - snapshot.updated_at > 10) warnings.push('当前数据已超过 10 秒未更新，系统正在重新采集');
     setNotice(warnings.join('；'));
     if (snapshot.ready) { renderMetrics(); renderTable(); }
+    else initialPollTimer = setTimeout(() => {
+      if (state.automatic && !document.hidden && !state.snapshot.ready) return loadData();
+    }, 150);
     if (force) toast('数据已刷新');
   } catch (error) {
     setConnection(false);

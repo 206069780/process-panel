@@ -13,7 +13,7 @@ import time
 
 import psutil
 
-from tests.windows import close, startup_error, user32, window_for_pid
+from tests.windows import close, startup_error, user32, wait_until, window_for_pid
 
 
 def measure(executable, root, run):
@@ -34,10 +34,13 @@ def measure(executable, root, run):
         record = None
         hwnd = None
         timing = {'run': run}
+        observed_workers = set()
         try:
             while time.perf_counter() - started < 90:
                 assert launcher.poll() is None, f'Application exited: {launcher.returncode}'
-                if parent.children() and 'child_started' not in timing:
+                children = parent.children(recursive=True)
+                observed_workers.update(children)
+                if children and 'child_started' not in timing:
                     timing['child_started'] = round(time.perf_counter() - started, 3)
                 if record is None:
                     for path in runtime.glob('*.json'):
@@ -50,13 +53,18 @@ def measure(executable, root, run):
                 if record:
                     error = startup_error(record['pid'])
                     assert not error, error
+                    splash = window_for_pid(record['pid'], 'Portside · 正在启动')
+                    if splash and 'animation_visible' not in timing:
+                        timing['animation_visible'] = round(time.perf_counter() - started, 3)
                     hwnd = window_for_pid(record['pid'])
                     if hwnd:
                         timing['window_visible'] = round(time.perf_counter() - started, 3)
-                        user32.SetWindowTextW(hwnd, 'Portside · 进程与端口工作台（自动验证）')
+                        user32.SetWindowTextW(hwnd, 'Portside · 进程与端口工作台（自动验证，请勿关闭）')
                         break
                 time.sleep(.025)
             assert hwnd, 'Application did not show its window'
+            wait_until(lambda: not window_for_pid(record['pid'], 'Portside · 正在启动'),
+                       'Startup animation did not close', timeout=5)
             probe = subprocess.run(
                 [shutil.which('node'), str(root / 'tests' / 'desktop_probe.mjs'),
                  f'http://127.0.0.1:{debug_port}', record['origin']],
@@ -65,22 +73,29 @@ def measure(executable, root, run):
             assert probe.returncode == 0, probe.stderr or probe.stdout
             timing['live_dashboard_ready'] = round(time.perf_counter() - started, 3)
             descendants = parent.children(recursive=True)
+            observed_workers.update(descendants)
             close(hwnd)
             assert launcher.wait(timeout=45) == 0
             _, alive = psutil.wait_procs(descendants, timeout=15)
             assert not alive, 'Verification left application workers running'
             return timing
         finally:
-            if launcher.poll() is None:
-                descendants = parent.children(recursive=True)
-                for child in reversed(descendants):
-                    try:
+            try:
+                observed_workers.update(parent.children(recursive=True))
+            except psutil.NoSuchProcess:
+                pass
+            # A launcher may already have exited while workers are still alive.
+            # Process objects retain creation-time identity to avoid PID reuse.
+            for child in observed_workers:
+                try:
+                    if child.is_running():
                         child.terminate()
-                    except psutil.NoSuchProcess:
-                        pass
+                except psutil.NoSuchProcess:
+                    pass
+            if launcher.poll() is None:
                 parent.terminate()
                 launcher.wait(timeout=20)
-                psutil.wait_procs(descendants, timeout=15)
+            psutil.wait_procs(list(observed_workers), timeout=15)
 
 
 def main():

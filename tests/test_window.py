@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest.mock import patch
 import psutil
 
 from PySide6.QtWidgets import QApplication
@@ -38,19 +39,89 @@ class WindowTests(unittest.TestCase):
         self.wait_until(lambda: bool(values))
         return values[0]
 
+    def test_startup_animation_changes_frames_and_finishes_immediately(self):
+        import importlib.util
+        self.assertIsNotNone(importlib.util.find_spec('panel.splash'), 'Native startup animation is missing')
+        from panel import splash as startup
+        splash = startup.StartupSplash()
+        try:
+            splash.show()
+            self.app.processEvents()
+            self.assertTrue(splash.isVisible())
+            first = splash.grab().toImage()
+            QTest.qWait(180)
+            self.assertNotEqual(first, splash.grab().toImage())
+            output = Path(__file__).resolve().parent.parent / '.runtime' / 'startup-preview.png'
+            self.assertTrue(splash.grab().save(str(output)))
+            splash.finish()
+            self.assertFalse(splash.isVisible())
+            self.assertFalse(splash.animation.isActive())
+        finally:
+            splash.close()
+
+    def test_startup_cancel_before_initialization_does_not_create_dashboard(self):
+        from panel import window
+        self.assertTrue(hasattr(window, 'DesktopStartup'), 'Desktop startup handoff is missing')
+        from panel.window import DesktopStartup
+        startup = DesktopStartup('http://127.0.0.1:1')
+        with patch('panel.window.DashboardWindow') as dashboard:
+            startup.start()
+            QTest.mouseClick(startup.splash.cancel_button, Qt.MouseButton.LeftButton)
+            self.app.processEvents()
+            self.assertFalse(startup.splash.isVisible())
+            self.assertFalse(startup.splash.animation.isActive())
+            dashboard.assert_not_called()
+
+    def test_startup_failure_closes_animation_and_preserves_error(self):
+        from panel import window
+        self.assertTrue(hasattr(window, 'DesktopStartup'), 'Desktop startup handoff is missing')
+        from panel.window import DesktopStartup
+        startup = DesktopStartup('http://127.0.0.1:1')
+        with patch('panel.window.DashboardWindow', side_effect=RuntimeError('initialization failed')):
+            startup.start()
+            self.wait_until(lambda: startup.error is not None)
+            self.assertIsInstance(startup.error, RuntimeError)
+            self.assertFalse(startup.splash.isVisible())
+            self.assertFalse(startup.splash.animation.isActive())
+
+    def test_page_load_failure_reveals_window_and_closes_animation(self):
+        import socket
+        from panel.window import DesktopStartup
+        with socket.socket() as unused:
+            unused.bind(('127.0.0.1', 0))
+            origin = f'http://127.0.0.1:{unused.getsockname()[1]}'
+            startup = DesktopStartup(origin)
+            try:
+                with patch('panel.window.QMessageBox.warning') as warning:
+                    startup.start()
+                    self.wait_until(lambda: warning.called)
+                    self.assertTrue(startup.window.isVisible())
+                    self.assertFalse(startup.splash.isVisible())
+                    self.assertFalse(startup.splash.animation.isActive())
+            finally:
+                startup.stop()
+                if startup.window:
+                    startup.window.dispose()
+
     def test_real_dashboard_renders_restores_and_accepts_activation(self):
-        from panel.window import DashboardWindow, DesktopChannel
+        from panel.window import DesktopStartup, DesktopChannel
         server = PanelServer()
         server.monitor.start()
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        window = DashboardWindow(server.origin)
-        channel = DesktopChannel(f'Portside-test-{os.getpid()}', window.bring_to_front)
+        startup = DesktopStartup(server.origin)
+        channel = DesktopChannel(f'Portside-test-{os.getpid()}', startup.bring_to_front)
+        window = None
         try:
-            window.show()
+            startup.start()
+            self.assertTrue(startup.splash.isVisible())
+            self.wait_until(lambda: startup.window is not None)
+            window = startup.window
             self.wait_until(lambda: self.javascript(window.view.page(),
                 "document.querySelector('#connection-text')?.textContent") == '实时连接')
             self.assertTrue(window.isVisible())
+            self.assertFalse(startup.splash.isVisible())
+            self.assertFalse(startup.splash.animation.isActive())
             self.assertFalse(window.escape_action.isEnabled())
             window._toggle_fullscreen()
             self.assertTrue(window.isFullScreen())
@@ -99,8 +170,9 @@ class WindowTests(unittest.TestCase):
             self.assertTrue(window.grab().save(str(output)))
         finally:
             channel.close()
-            window.close()
-            window.dispose()
+            startup.stop()
+            if window:
+                window.dispose()
             self.app.processEvents()
             server.shutdown()
             thread.join(timeout=5)

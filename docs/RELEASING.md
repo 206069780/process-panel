@@ -2,7 +2,7 @@
 
 仓库地址：<https://github.com/206069780/process-panel>。
 
-源码和文档使用 Git 管理；生成的 EXE 使用 GitHub Releases 分发。当前 EXE 约 201 MiB，超过 GitHub 普通 Git 单文件 100 MiB 限制，`dist/` 已加入 `.gitignore`。
+源码和文档使用 Git 管理；便携 ZIP 和可选单文件 EXE 使用 GitHub Releases 分发。完整压缩包约 202 MiB，超过 GitHub 普通 Git 单文件 100 MiB 限制，`dist/` 已加入 `.gitignore`。发布便携版时必须包含 EXE 和 `_internal`，不要只上传目录中的小 EXE。
 
 ## 更新版本
 
@@ -21,15 +21,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 .\.venv\Scripts\python.exe -m unittest discover -v
 node --test tests/test_model.mjs tests/test_ui_lifecycle.mjs
 .\.venv\Scripts\python.exe -m tests.exe_smoke
+.\.venv\Scripts\python.exe -m tests.startup_benchmark --runs 3
 ```
 
-确认独立窗口、查询、测试进程结束和退出清理均通过，并检查 `.runtime/exe-desktop-preview.png`。构建前关闭正在运行的同路径输出 EXE，以免文件被锁定。
+确认独立窗口、启动动画、取消启动、查询、测试进程结束和退出清理均通过，并检查 `.runtime/exe-dashboard-preview.png`。构建前关闭正在运行的同路径输出 EXE，以免文件被锁定。
 
 为交付文件生成校验文件：
 
 ```powershell
-$artifactHash = (Get-FileHash -LiteralPath .\dist\Portside.exe -Algorithm SHA256).Hash.ToLowerInvariant()
-"$artifactHash  Portside.exe" | Set-Content -LiteralPath .\dist\SHA256SUMS.txt -Encoding ascii
+$artifactHash = (Get-FileHash -LiteralPath .\dist\Portside-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+"$artifactHash  Portside-windows-x64.zip" | Set-Content -LiteralPath .\dist\SHA256SUMS.txt -Encoding ascii
 ```
 
 在验证记录中写明测试系统、依赖版本、文件大小和哈希。不同构建环境生成的 EXE 哈希可能不同，以对应发布附件的校验文件为准。
@@ -52,16 +53,16 @@ git push -u origin main
 ## 创建 Release
 
 1. 在仓库的 Releases 页面选择“Draft a new release”。
-2. 基于已验证提交创建版本标签，例如 `v1.1.0`。
+2. 基于已验证提交创建版本标签，例如 `v1.1.1`。
 3. 将对应的更新日志写入发布说明，标明 Windows x64 和独立桌面窗口。
-4. 上传 `dist/Portside.exe`、`dist/SHA256SUMS.txt` 及与本次打包依赖匹配的第三方许可材料，检查附件完整后发布。
+4. 上传 `dist/Portside-windows-x64.zip`、`dist/SHA256SUMS.txt` 及与本次打包依赖匹配的第三方许可材料，检查附件完整后发布。使用说明注明“解压后运行，并保留整个文件夹”。
 
 当前项目未配置自动发布工作流，推送源码不会自动上传 EXE。第三方许可材料的整理依据见[第三方组件说明](../THIRD_PARTY_NOTICES.md)。
 
 如果已安装并登录 GitHub CLI，也可执行以下命令创建发布草稿，再在网页检查附件并发布：
 
 ```powershell
-gh release create v1.1.0 --target main --draft --title "Portside 1.1.0" --notes-file CHANGELOG.md .\dist\Portside.exe .\dist\SHA256SUMS.txt
+gh release create v1.1.1 --target main --draft --title "Portside 1.1.1" --notes-file CHANGELOG.md .\dist\Portside-windows-x64.zip .\dist\SHA256SUMS.txt
 ```
 
-完成后从 Releases 重新下载 EXE，核对 SHA-256，再检查独立运行。
+完成后从 Releases 重新下载 ZIP，核对 SHA-256，解压到新目录再检查独立运行。若需要额外发布单文件版，使用 `build.ps1 -SingleFile` 构建 `dist/singlefile/Portside.exe`，单独记录其哈希并说明启动时需要解包。

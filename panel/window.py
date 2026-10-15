@@ -7,12 +7,14 @@ import sys
 import threading
 import time
 
-from PySide6.QtCore import QEvent, Qt, QUrl, QTimer
+from PySide6.QtCore import QEvent, QObject, Qt, QUrl, QTimer, Signal
 from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
+
+from panel.splash import StartupSplash
 
 
 class LocalPage(QWebEnginePage):
@@ -29,8 +31,12 @@ class LocalPage(QWebEnginePage):
 
 
 class DashboardWindow(QMainWindow):
+    loaded = Signal(bool)
+    closed = Signal()
+
     def __init__(self, origin):
         super().__init__()
+        self._closing = False
         self.setWindowTitle('Portside · 进程与端口工作台')
         self.setWindowIcon(QIcon(str(Path(__file__).resolve().parent.parent / 'static' / 'favicon.svg')))
         self.resize(1480, 960)
@@ -62,8 +68,16 @@ class DashboardWindow(QMainWindow):
         self.view.load(QUrl(origin))
 
     def _loaded(self, ok):
+        if self._closing:
+            return
+        self.loaded.emit(ok)
         if not ok:
             QMessageBox.warning(self, 'Portside', '面板加载失败，请关闭程序后重新打开。')
+
+    def closeEvent(self, event):
+        self._closing = True
+        super().closeEvent(event)
+        self.closed.emit()
 
     def bring_to_front(self):
         if self.isMinimized():
@@ -94,6 +108,65 @@ class DashboardWindow(QMainWindow):
         # Delete the page before its profile (Qt requires this destruction order).
         self.page.deleteLater()
         QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+class DesktopStartup(QObject):
+    """Own the splash-to-dashboard handoff and cancellation on the GUI thread."""
+
+    def __init__(self, origin):
+        super().__init__()
+        self.origin = origin
+        self.window = None
+        self.error = None
+        self.stopped = False
+        self.splash = StartupSplash()
+        self.splash.cancelled.connect(self.stop)
+        self.initialize = QTimer(self)
+        self.initialize.setSingleShot(True)
+        self.initialize.timeout.connect(self._initialize)
+
+    def start(self):
+        self.splash.show()
+        # Paint feedback before synchronous WebEngine construction begins.
+        self.splash.repaint()
+        self.initialize.start(0)
+
+    def _initialize(self):
+        if self.stopped:
+            return
+        try:
+            self.window = DashboardWindow(self.origin)
+            self.window.loaded.connect(self._reveal)
+            self.window.closed.connect(self.stop)
+            self.splash.set_status('正在加载进程与端口面板…')
+        except Exception as error:
+            self.error = error
+            self.stop()
+
+    def _reveal(self, ok):
+        if not self.stopped:
+            self.window.show()
+            self.splash.finish()
+
+    def bring_to_front(self):
+        if self.stopped:
+            return
+        if self.window and self.window.isVisible():
+            self.window.bring_to_front()
+        else:
+            self.splash.show()
+            self.splash.raise_()
+            self.splash.activateWindow()
+
+    def stop(self):
+        if self.stopped:
+            return
+        self.stopped = True
+        self.initialize.stop()
+        self.splash.finish()
+        if self.window:
+            self.window.close()
+        QApplication.instance().quit()
 
 
 class DesktopChannel:
@@ -173,17 +246,21 @@ def run_desktop(server, name):
     app.setApplicationName('Portside')
     app.setOrganizationName('Portside')
     app.setQuitOnLastWindowClosed(True)
-    window = DashboardWindow(server.origin)
-    channel = DesktopChannel(name, window.bring_to_front)
+    startup = DesktopStartup(server.origin)
+    channel = DesktopChannel(name, startup.bring_to_front)
     thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .2},
                               daemon=True, name='panel-http')
     thread.start()
     try:
-        window.show()
-        return app.exec()
+        startup.start()
+        result = app.exec()
+        if startup.error:
+            raise startup.error
+        return result
     finally:
         channel.close()
-        window.close()
-        window.dispose()
+        startup.stop()
+        if startup.window:
+            startup.window.dispose()
         server.shutdown()
         thread.join(timeout=5)

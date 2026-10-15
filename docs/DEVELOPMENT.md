@@ -34,6 +34,7 @@ main.py                 启动、参数、实例锁和清理
 panel/
   desktop.py            权限检测、运行记录、Windows 互斥锁
   window.py             Qt 窗口、内置页面、本地 IPC 和生命周期
+  splash.py             原生启动动画、加载状态和取消按钮
   monitor.py            进程及网络采集、后台刷新、快照缓存
   processes.py          进程详情、身份校验和受保护的结束操作
   server.py             回环 HTTP 服务、会话和来源校验
@@ -45,7 +46,7 @@ static/
   model.mjs             搜索、筛选、排序、分页和格式化
 tests/                  Python、Node 与打包验收
 assets/portside.ico      应用图标，可通过构建脚本重新生成
-Portside.spec           PyInstaller 单文件打包配置
+Portside.spec           PyInstaller 目录 / 单文件打包配置
 build.ps1               Windows 构建入口
 windows-version.txt     EXE 版本资源
 docs/                   使用、设计、开发和发布文档
@@ -71,17 +72,26 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 .\.venv\Scripts\python.exe -m tests.exe_smoke
 ```
 
-构建脚本创建或复用 `.venv/`，安装依赖、生成图标，并输出 `dist\Portside.exe`。打包配置会限制依赖扫描 PATH，防止开发工具目录中的不兼容 ICU DLL 被意外收集。
+构建脚本创建或复用 `.venv/`，安装依赖、生成图标，输出 `dist\Portside\Portside.exe`、其 `_internal` 组件及 `dist\Portside-windows-x64.zip`。默认目录模式避免每次启动重复解包。打包配置会限制依赖扫描 PATH，防止开发工具目录中的不兼容 ICU DLL 被意外收集。
 
-独立验收将 EXE 单独复制到中文临时目录，使用隔离的用户配置，移除 Python 路径，再检查窗口、实际页面数据、重复启动、最小化恢复、TCP / UDP 归属、结束测试进程、端口释放以及关闭清理。只为验收进程开启 Qt 调试端口；正常启动不启用它。
+独立验收将 EXE 及同目录 `_internal` 复制到中文临时目录，使用隔离的用户配置，移除 Python 路径，再检查窗口、实际页面数据、重复启动、最小化恢复、TCP / UDP 归属、结束测试进程、端口释放以及关闭清理。只为验收进程开启 Qt 调试端口；正常启动不启用它。
 
-测试其他输出位置：
+可选单文件模式与验收：
 
 ```powershell
-.\.venv\Scripts\python.exe -m tests.exe_smoke --exe .runtime\staged-dist\Portside.exe
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -SingleFile
+.\.venv\Scripts\python.exe -m tests.exe_smoke --exe dist\singlefile\Portside.exe
 ```
 
 结果和截图写入 `.runtime/`，该目录不进入版本控制。验收时请等待标有“自动验证”的窗口自行完成。
+
+## 测量启动性能
+
+```powershell
+.\.venv\Scripts\python.exe -m tests.startup_benchmark --runs 3
+```
+
+记录启动到内部服务、启动动画、主窗口显示和实际数据界面就绪的时间，并在每次测量后关闭测试实例。可用 `--exe PATH` 选择其他构建，`--output PATH` 保存比较结果，`--max-ready-seconds 4` 设置本机验证门槛。默认不设与硬件相关的强制上限。测量过程中不要同时构建或执行其他测试。
 
 ## 修改约定
 

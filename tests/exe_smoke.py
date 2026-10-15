@@ -1,4 +1,4 @@
-"""Verify the distributed EXE in a directory without source files or Python."""
+"""Verify a portable bundle or single EXE without source files or Python."""
 
 import argparse
 import json
@@ -19,10 +19,58 @@ from tests.helpers import cleanup_child, listening_child
 from tests.windows import close, minimize, screenshot, startup_error, user32, wait_until, window_for_pid
 
 
+def verify_startup_cancel(executable, environment, directory, runtime, root):
+    launcher = subprocess.Popen([str(executable)], cwd=directory, env=environment,
+                                creationflags=subprocess.CREATE_NO_WINDOW)
+    parent = psutil.Process(launcher.pid)
+    workers = set()
+    try:
+        record_path = wait_until(lambda: next(iter(runtime.glob('*.json')), None),
+                                 'Cancellation launch did not register', timeout=90)
+        record = json.loads(record_path.read_text(encoding='utf-8'))
+        instance = psutil.Process(record['pid'])
+        def startup_window():
+            error = startup_error(instance.pid)
+            assert not error, error
+            assert launcher.poll() is None, f'Cancellation launch exited: {launcher.returncode}'
+            return window_for_pid(instance.pid, 'Portside · 正在启动')
+
+        deadline = time.monotonic() + 90
+        splash = None
+        while time.monotonic() < deadline:
+            splash = startup_window()
+            if splash:
+                break
+            assert not window_for_pid(instance.pid), 'Startup animation was missed before the dashboard appeared'
+            time.sleep(.01)
+        assert splash, 'No startup animation appeared within the cold-launch budget'
+        workers.update(parent.children(recursive=True))
+        close(splash)
+        assert launcher.wait(timeout=45) == 0, 'Cancel startup did not exit cleanly'
+        assert not record_path.exists(), 'Cancel startup left a runtime record'
+        _, alive = psutil.wait_procs(list(workers), timeout=15)
+        assert not alive, 'Cancel startup left application workers running'
+    finally:
+        try:
+            workers.update(parent.children(recursive=True))
+        except psutil.NoSuchProcess:
+            pass
+        for worker in workers:
+            try:
+                if worker.is_running():
+                    worker.terminate()
+            except psutil.NoSuchProcess:
+                pass
+        if launcher.poll() is None:
+            parent.terminate()
+            launcher.wait(timeout=15)
+        psutil.wait_procs(list(workers), timeout=15)
+
+
 def main():
     root = Path(__file__).resolve().parent.parent
     parser = argparse.ArgumentParser()
-    parser.add_argument('--exe', type=Path, default=root / 'dist' / 'Portside.exe')
+    parser.add_argument('--exe', type=Path, default=root / 'dist' / 'Portside' / 'Portside.exe')
     args = parser.parse_args()
     report = {}
     (root / '.runtime').mkdir(exist_ok=True)
@@ -30,6 +78,10 @@ def main():
         directory = Path(temporary)
         executable = directory / 'Portside.exe'
         shutil.copy2(args.exe, executable)
+        bundled_runtime = args.exe.parent / '_internal'
+        if bundled_runtime.is_dir():
+            shutil.copytree(bundled_runtime, directory / '_internal')
+        distribution_bytes = sum(p.stat().st_size for p in directory.rglob('*') if p.is_file())
         profile = directory / '用户配置'
         runtime = profile / 'Portside' / 'runtime'
         environment = os.environ.copy()
@@ -42,6 +94,7 @@ def main():
             debug_port = debug_socket.getsockname()[1]
         # Enabled only for this test process, never for ordinary EXE launches.
         environment['QTWEBENGINE_REMOTE_DEBUGGING'] = f'127.0.0.1:{debug_port}'
+        verify_startup_cancel(executable, environment, directory, runtime, root)
         launcher = subprocess.Popen(
             [str(executable)],
             cwd=directory, env=environment, creationflags=subprocess.CREATE_NO_WINDOW,
@@ -70,10 +123,11 @@ def main():
                 return window_for_pid(pid)
 
             hwnd = wait_until(lambda: shown_window(record['pid']), 'EXE did not show a standalone window')
-            user32.SetWindowTextW(hwnd, 'Portside · 进程与端口工作台（自动验证）')
+            user32.SetWindowTextW(hwnd, 'Portside · 进程与端口工作台（自动验证，请勿关闭）')
             origin = record['origin']
             probe = subprocess.run([shutil.which('node'), str(root / 'tests' / 'desktop_probe.mjs'),
-                                    f'http://127.0.0.1:{debug_port}', origin],
+                                    f'http://127.0.0.1:{debug_port}', origin,
+                                    str(root / '.runtime' / 'exe-dashboard-preview.png')],
                                    capture_output=True, text=True, encoding='utf-8', timeout=60)
             assert probe.returncode == 0, probe.stderr or probe.stdout
             html = urllib.request.urlopen(origin, timeout=20).read().decode('utf-8')
@@ -131,7 +185,8 @@ def main():
             created = psutil.Process(child.pid).create_time()
             snapshot = request('/api/refresh', {})
             def live_renderers():
-                assert instance.is_running() and window_for_pid(instance.pid), 'Test window was closed during verification'
+                assert instance.is_running() and window_for_pid(instance.pid), (
+                    f'Test window closed during verification; launcher exit code: {launcher.poll()}')
                 workers = []
                 for process in instance.children(recursive=True):
                     try:
@@ -182,9 +237,10 @@ def main():
             fresh = json.loads(new_path.read_text(encoding='utf-8'))
             instance = psutil.Process(fresh['pid'])
             fresh_window = wait_until(lambda: shown_window(instance.pid), 'Relaunch did not show a window')
-            user32.SetWindowTextW(fresh_window, 'Portside · 进程与端口工作台（自动验证）')
-            parent = instance.ppid()
-            secondary = next(p for p in pair if p.pid != parent)
+            user32.SetWindowTextW(fresh_window, 'Portside · 进程与端口工作台（自动验证，请勿关闭）')
+            # Onedir is the launcher itself; onefile starts a child after extraction.
+            owner = instance.pid if any(p.pid == instance.pid for p in pair) else instance.ppid()
+            secondary = next(p for p in pair if p.pid != owner)
             assert secondary.wait(timeout=60) == 0, 'Simultaneous launch did not reuse the first window'
             assert len(list(runtime.glob('*.json'))) == 1, 'Simultaneous launch created multiple instances'
             close(fresh_window)
@@ -202,7 +258,10 @@ def main():
                 'self_protection': True, 'process_termination': True, 'port_released': True,
                 'renderer_protection': True,
                 'live_dashboard_rendered': True, 'packaged_fuzzy_search': True,
+                'startup_animation': True, 'cancel_startup_exits_cleanly': True,
                 'exe_bytes': executable.stat().st_size,
+                'distribution_mode': 'directory' if bundled_runtime.is_dir() else 'single_file',
+                'distribution_bytes': distribution_bytes,
             }
         finally:
             if child:

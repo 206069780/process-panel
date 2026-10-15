@@ -26,9 +26,18 @@ Files: `tests/startup_benchmark.py`.
 
 Files: `Portside.spec`, `build.ps1`, `tests/exe_smoke.py`, version metadata and docs.
 
-- [ ] Default to `EXE(..., exclude_binaries=True)` plus `COLLECT`; select onefile through a task-specific environment variable set by `build.ps1 -SingleFile`.
-- [ ] Produce `dist/Portside/Portside.exe` and `dist/Portside-windows-x64.zip`; keep optional onefile output under `dist/singlefile/`.
-- [ ] Extend smoke staging to copy `_internal` and recognize the owning launcher under both modes.
-- [ ] Build, run the same timing target against the new artifact, and execute full desktop smoke plus source regressions.
-- [ ] Update user/developer/release docs with the whole-folder requirement and measured comparison.
-- [ ] Review the change, retire the old default binary after graceful close, leave the verified package ready, and push the source update.
+- [x] Default to `EXE(..., exclude_binaries=True)` plus `COLLECT`; select onefile through a task-specific environment variable set by `build.ps1 -SingleFile`.
+- [x] Produce `dist/Portside/Portside.exe` and `dist/Portside-windows-x64.zip`; keep optional onefile output under `dist/singlefile/`.
+- [x] Extend smoke staging to copy `_internal` and recognize the owning launcher under both modes.
+- [x] Reproduce delayed initial sampling with a failing frontend test; poll initial readiness every 150ms and stop after readiness or pause.
+- [x] Build, run the same timing target against the new artifact, and execute full desktop smoke plus source regressions.
+- [x] Update user/developer/release docs with the whole-folder requirement and measured comparison.
+- [x] Review the change, retire the old default binary after graceful close, and leave the verified package ready for source synchronization.
+
+### Task 3: Native startup animation
+
+Files: `panel/splash.py`, `panel/window.py`, `tests/test_window.py`, startup benchmark and docs.
+
+- [x] Add failing checks for visible animation, immediate completion, early cancellation and initialization failure.
+- [x] Show a native animated splash before WebEngine construction, hand off on page load, and clean up on every exit path.
+- [x] Verify a real desktop launch and cancellation, capture the animation, then rebuild and remeasure the delivered EXE.

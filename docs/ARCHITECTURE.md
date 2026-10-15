@@ -2,7 +2,7 @@
 
 ## 运行结构
 
-Portside 是本机桌面应用，使用 PySide6 的 `QMainWindow` 和 `QWebEngineView` 显示内置界面。Qt 渲染组件和 Python 一起进入单文件 EXE。
+Portside 是本机桌面应用，使用 PySide6 的 `QMainWindow` 和 `QWebEngineView` 显示内置界面。Qt 渲染组件和 Python 随程序提供。默认便携目录中的 EXE 直接加载 `_internal` 组件；可选单文件版在运行前将组件解包到临时目录。
 
 ```mermaid
 flowchart LR
@@ -21,6 +21,8 @@ flowchart LR
 `main.py` 创建运行记录目录，并根据可执行文件路径、权限和运行目录获取实例互斥锁。已有实例运行时，通过 `QLocalSocket` 请求 `QLocalServer` 唤起窗口；运行记录文件缺失也不影响唤起。
 
 主实例创建回环 HTTP 服务，启动采集线程，写入仅含 PID、启动时间、内部地址和权限状态的运行记录，然后显示窗口。Windows 使用独占端口绑定，首选端口不可用时改用系统分配的空闲端口。
+
+`DesktopStartup` 先绘制原生 Qt 启动画面，再在 GUI 事件循环中初始化 WebEngine。页面加载完成即显示主窗口并停止动画，没有固定展示时长。初始化异常会退出事件循环并向入口传播；取消启动与正常关闭共享清理流程。重复实例激活当前的启动画面或主窗口。
 
 关闭窗口后退出 Qt 事件循环，关闭 IPC 与 HTTP 服务、释放采集线程、移除运行记录并释放互斥锁。Qt 页面先于其内存配置销毁。
 

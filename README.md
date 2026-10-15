@@ -2,7 +2,7 @@
 
 Windows 本机进程与端口管理工具。通过中文面板查看系统资源、定位端口占用，并在确认后结束指定进程。
 
-**独立桌面窗口 · 单文件 EXE · 模糊搜索 · TCP / UDP · 无需安装 Python**
+**独立桌面窗口 · 便携免安装 · 模糊搜索 · TCP / UDP · 无需安装 Python**
 
 ![Portside 桌面界面](preview.png)
 
@@ -15,16 +15,19 @@ Windows 本机进程与端口管理工具。通过中文面板查看系统资源
 - 查看进程路径、启动命令、启动时间、所属用户及占用端口，复制详情。
 - 确认后结束进程，刷新端口列表；保护 Windows 关键进程及面板运行所需进程。
 - 支持最小化、最大化和 F11 全屏；重复启动唤起已有窗口，关闭窗口即退出。
+- 原生启动动画显示加载状态，面板加载后自动切换，支持取消启动。
 
 ## 获取和运行
 
 适用于 Windows 10 / 11 x64，已在 Windows 11 x64 实机验证。
 
-1. 在 [Releases](https://github.com/206069780/process-panel/releases) 中查找 `Portside.exe`。若尚未发布二进制，可按下方说明自行构建。
-2. 将 EXE 保存到任意本地目录，双击打开独立窗口。只需携带这个文件，无需安装 Python 或 WebView2。
+1. 在 [Releases](https://github.com/206069780/process-panel/releases) 中查找 `Portside-windows-x64.zip`。若尚未发布二进制，可按下方说明自行构建。
+2. 解压到本地目录，打开 `Portside` 文件夹，双击 `Portside.exe`。请保留同目录的 `_internal` 文件夹，无需安装 Python 或 WebView2。
 3. 查询端口或进程；需要结束进程时，先核对详情，再点击“结束”并确认。
 
 普通权限可以查看大部分信息。提示权限不足时，关闭程序，右键 EXE 选择“以管理员身份运行”。结束进程可能丢失未保存的数据。
+
+1.1.1 默认使用便携文件夹，解压一次后启动时直接加载组件，避免原单文件版每次重复解包。可将 EXE 的快捷方式放到桌面，移动程序时携带整个 `Portside` 文件夹。
 
 ## 搜索示例
 
@@ -61,7 +64,9 @@ py -3.12 -m venv .venv
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-脚本安装构建依赖、生成图标并通过 PyInstaller 打包，结果为 `dist\Portside.exe`。Qt 渲染组件已内置，当前文件约 201 MiB。`dist/` 不提交到 Git；二进制分发方式见[发布指南](docs/RELEASING.md)。
+脚本安装构建依赖、生成图标并通过 PyInstaller 打包，结果为 `dist\Portside\Portside.exe` 和 `dist\Portside-windows-x64.zip`。运行时保留整个 `Portside` 文件夹。
+
+如需单文件构建，可执行 `powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -SingleFile`，结果为 `dist\singlefile\Portside.exe`；该模式每次启动需要解包，速度较慢。`dist/` 不提交到 Git；分发方式见[发布指南](docs/RELEASING.md)。
 
 ## 文档
 
@@ -75,5 +80,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 | [贡献指南](CONTRIBUTING.md) | 问题反馈与提交要求 |
 | [第三方组件](THIRD_PARTY_NOTICES.md) | 主要依赖及其许可来源 |
 | [验证记录](docs/verification-2026-10-15.md) | 1.1.0 本机测试与打包验证证据 |
+| [启动性能验证](docs/startup-performance-2026-10-15.md) | 1.1.1 启动测量和便携包验收 |
 
 项目使用 Python、psutil、PySide6 / Qt WebEngine 和原生 JavaScript。应用只管理当前电脑，内部服务仅监听 `127.0.0.1`，详情见[架构说明](docs/ARCHITECTURE.md)。

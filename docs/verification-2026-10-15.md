@@ -24,7 +24,7 @@ SHA-256：`bd29d0a81e2a8f113c93ea8cd0b4975c0cc70fca82659849fcd290682d42c024`。
 
 ## 最终运行状态
 
-最终 `dist\Portside.exe` 已完成独立桌面窗口启动和重复启动验证。关闭窗口即退出；内部回环服务用于窗口取数。交付前检查文件哈希一致。打包窗口截图保存在仓库根目录的 [preview.png](../preview.png)。
+当时的 `dist\Portside.exe` 已完成独立桌面窗口启动和重复启动验证。关闭窗口即退出；内部回环服务用于窗口取数。交付前检查文件哈希一致。该版本截图保存在 [portside-1.1.0.png](images/portside-1.1.0.png)；当前版本验证见[启动性能验证](startup-performance-2026-10-15.md)。
 
 构建环境依赖：Python 3.12、psutil 7.2.2、PySide6 6.10.2、PyInstaller 6.22.3、Pillow 12.3.0、Node.js 24.18.0。
 
